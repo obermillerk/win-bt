@@ -104,7 +104,7 @@ function _BTAddressToInt(address) {
     if (typeof address !== 'string') {
         throw new Error('Parameter address must be a string of twelve hexidecimal digits, optionally separated by a colon (:) every two digits.')
     }
-    if (!address.match(/(?:^[0-9a-f]{12}$)|(?:^(?:[0-9a-f]{2}:){5}[0-9a-f]{2}$)/)) {
+    if (!address.match(/(?:^[0-9a-fA-F]{12}$)|(?:^(?:[0-9a-fA-F]{2}:){5}[0-9a-fA-F]{2}$)/)) {
         throw new Error(`Invalid address string '${address}'. Must be twelve hexidecimal digits, optionally separated by a colon (:) every two digits.`);
     }
 

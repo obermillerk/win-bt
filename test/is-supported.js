@@ -1,3 +1,5 @@
 const BT = require('../bt');
 
-console.log(BT.isSupported());
+BT.isSupported().then((supported) => {
+    console.log(supported);
+});

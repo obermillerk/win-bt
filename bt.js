@@ -8,15 +8,16 @@ const Radios = require('windows.devices.radios');
 const Radio = Radios.Radio;
 const RadioKind = Radios.RadioKind;
 const RadioState = Radios.RadioState;
-const deasync = require('deasync');
 
 var Bluetooth = {};
 
-Bluetooth.isSupported = isSupported = function () {
-    radios = deasync(Radio.getRadiosAsync)();
+Bluetooth.isSupported = isSupported = async function () {
+    let radios = await new Promise((res, rej) => {
+        Radio.getRadiosAsync(_promiseWrapperCB(res, rej));
+    });
     radios = radios.first();
     while (radios.hasCurrent) {
-        radio = radios.current;
+        let radio = radios.current;
         if(radio.kind == RadioKind.bluetooth)
             return true;
         
@@ -25,11 +26,13 @@ Bluetooth.isSupported = isSupported = function () {
     return false;
 }
 
-Bluetooth.isEnabled = isEnabled = function () {
-    radios = deasync(Radio.getRadiosAsync)();
+Bluetooth.isEnabled = isEnabled = async function () {
+    let radios = await new Promise((res, rej) => {
+        Radio.getRadiosAsync(_promiseWrapperCB(res, rej));
+    });
     radios = radios.first();
     while (radios.hasCurrent) {
-        radio = radios.current;
+        let radio = radios.current;
         if(radio.kind == RadioKind.bluetooth && radio.state == RadioState.on)
             return true;
         
@@ -82,7 +85,7 @@ function _BTAddressToHexString(address) {
     if (typeof address !== 'number') {
         throw new Error(`Parameter address must be a number between 0 and #ffffffffffff (281474976710655).`)
     }
-    if (address > 281474976710655 || address < 0) { // max bluetooth address value (ff:ff:ff:ff:ff:ff), must be positive
+    if (address > 0xffffffffffff || address < 0) { // max bluetooth address value (ff:ff:ff:ff:ff:ff), must be positive
         throw new Error(`Address ${address} out of range. Must be between 0 and #ffffffffffff (281474976710655).`);
     }
 
@@ -104,7 +107,7 @@ function _BTAddressToInt(address) {
     if (typeof address !== 'string') {
         throw new Error('Parameter address must be a string of twelve hexidecimal digits, optionally separated by a colon (:) every two digits.')
     }
-    if (!address.match(/(?:^[0-9a-fA-F]{12}$)|(?:^(?:[0-9a-fA-F]{2}:){5}[0-9a-fA-F]{2}$)/)) {
+    if (!address.match(/(?:^[0-9a-f]{12}$)|(?:^(?:[0-9a-f]{2}:){5}[0-9a-f]{2}$)/i)) {
         throw new Error(`Invalid address string '${address}'. Must be twelve hexidecimal digits, optionally separated by a colon (:) every two digits.`);
     }
 
@@ -113,10 +116,13 @@ function _BTAddressToInt(address) {
     return address;
 }
 
-function _parseBTDevice(devInfo) {
+async function _parseBTDevice(devInfo) {
     let btd = devInfo;
     if (devInfo instanceof DevInfo) {
-        btd = deasync(BTDevice.fromIdAsync)(devInfo.id);
+        // btd = deasync(BTDevice.fromIdAsync)(devInfo.id);
+        btd = await new Promise((res, rej) => {
+            BTDevice.fromIdAsync(devInfo.id, _promiseWrapperCB(res, rej));
+        });
     } else if (devInfo instanceof BTDevice) {
         devInfo = btd.deviceInformation;
     } else {
@@ -156,7 +162,7 @@ function _treatAddress(address) {
             address = _BTAddressToInt(address);
             // No break intended.
         case 'number':
-            if (address > 281474976710655 || address < 0) { // max bluetooth address value (ff:ff:ff:ff:ff:ff), must be positive
+            if (address > 0xffffffffffff || address < 0) { // max bluetooth address value (ff:ff:ff:ff:ff:ff), must be positive
                 throw new Error(`Address ${address} out of range. Must be between 0 and #ffffffffffff (281474976710655).`);
             }
             return address;
@@ -165,122 +171,112 @@ function _treatAddress(address) {
     }
 }
 
-Bluetooth.listUnpaired = listUnpaired = function() {
-    return new Promise((resolve, reject) => {
-        let unpaired = [];
-        let results = deasync(DevInfo.findAllAsync)(unpairedQuery);
-        results = results.first();
-        while(results.hasCurrent) {
-            let device = _parseBTDevice(results.current);
-            unpaired.push(device);
-            results.moveNext();
-        }
-        resolve(unpaired);
-    });
+function _promiseWrapperCB(res, rej) {
+    return function(err, result) {
+        if (err) rej(err);
+        else res(result);
+    }
 }
 
-Bluetooth.listPaired = listPaired = function() {
-    return new Promise((resolve, reject) => {
-        let paired = [];
-        let results = deasync(DevInfo.findAllAsync)(pairedQuery);
-        results = results.first();
-        while(results.hasCurrent) {
-            let device = _parseBTDevice(results.current);
-            paired.push(device);
-            results.moveNext();
-        }
-        resolve(paired);
+Bluetooth.listUnpaired = listUnpaired = async function() {
+    let unpaired = [];
+    // let results = deasync(DevInfo.findAllAsync)(unpairedQuery);
+    let results = await new Promise((res, rej) => {
+        DevInfo.findAllAsync(unpairedQuery, _promiseWrapperCB(res, rej));
     });
+    results = results.first();
+    while(results.hasCurrent) {
+        let device = await _parseBTDevice(results.current);
+        unpaired.push(device);
+        results.moveNext();
+    }
+    return unpaired;
 }
 
-Bluetooth.listAll = listAll = function() {
-    return new Promise((resolve, reject) => {
-        Promise.all([listPaired(), listUnpaired()]).then(values => {
-            resolve(values[0].concat(values[1]));
-        });
+Bluetooth.listPaired = listPaired = async function() {
+    let paired = [];
+    // let results = deasync(DevInfo.findAllAsync)(pairedQuery);
+    let results = await new Promise((res, rej) => {
+        DevInfo.findAllAsync(pairedQuery, _promiseWrapperCB(res, rej));
     });
+    results = results.first();
+    while(results.hasCurrent) {
+        let device = await _parseBTDevice(results.current);
+        paired.push(device);
+        results.moveNext();
+    }
+    return paired;
 }
 
-Bluetooth.fromAddress = fromAddress = function(address) {
-    return new Promise((resolve, reject) => {
-        address = _treatAddress(address);
-        BTDevice.fromBluetoothAddressAsync(address, (err, btd) => {
-            if (err) {
-                return reject(err);
+Bluetooth.listAll = listAll = async function() {
+    let values = await Promise.all([listPaired(), listUnpaired()]);
+    return values[0].concat(values[1]);
+}
+
+Bluetooth.fromAddress = fromAddress = async function(address) {
+    address = _treatAddress(address);
+    let btd = await new Promise((res, rej) => {
+        BTDevice.fromBluetoothAddressAsync(address, _promiseWrapperCB(res, rej));
+    });
+
+    return await _parseBTDevice(btd);
+}
+
+Bluetooth.pair = pair = async function(address) {
+    // let btd = deasync(BTDevice.fromBluetoothAddressAsync)(_treatAddress(address)).deviceInformation;
+    let btd = (await new Promise((res, rej) => {
+        BTDevice.fromBluetoothAddressAsync(_treatAddress(address), _promiseWrapperCB(res, rej));
+    })).deviceInformation;
+    let pairing = btd.pairing.custom;
+
+    pairing.on('pairingRequested', (custom, request) => {
+        request.accept();
+    });
+    let pairingKinds = DevEnum.DevicePairingKinds;
+    pairingKinds = pairingKinds.displayPin; // Only one that seems to work at all reliably from library.
+    // pairingKinds = pairingKinds.confirmOnly | pairingKinds.confirmPinMatch | pairingKinds.displayPin | pairingKinds.providePin;
+    
+    let result = await new Promise((res, rej) => {
+        pairing.pairAsync(pairingKinds, btd.pairing.protectionLevel, _promiseWrapperCB(res, rej));
+    });
+    
+    let status = _parseEnumValue(result.status, DevEnum.DevicePairingResultStatus);
+    switch(status) {
+        case 'paired':
+        case 'alreadyPaired':
+            let result = {
+                status: status,
+                device: await fromAddress(address)
             }
-
-            resolve(_parseBTDevice(btd));
-        })
-    });
+            return result;
+        default:
+            throw new Error(`Pairing failed: ${status}`);
+    }
 }
 
-Bluetooth.pair = pair = function(address) {
-    return new Promise((resolve, reject) => {
-        try {
-            address = _treatAddress(address);
-            
-            let btd = deasync(BTDevice.fromBluetoothAddressAsync)(address).deviceInformation;
-            let pairing = btd.pairing.custom;
+Bluetooth.unpair = unpair = async function(address) {
+    // let btd = deasync(BTDevice.fromBluetoothAddressAsync)(_treatAddress(address)).deviceInformation;
+    let btd = (await new Promise((res, rej) => {
+        BTDevice.fromBluetoothAddressAsync(_treatAddress(address), _promiseWrapperCB(res, rej));
+    })).deviceInformation;
+    let pairing = btd.pairing;
 
-            pairing.on('pairingRequested', (custom, request) => {
-                request.accept();
-            });
-            let pairingKinds = DevEnum.DevicePairingKinds;
-            pairingKinds = pairingKinds.displayPin; // Only one that seems to work at all reliably from library.
-            // pairingKinds = pairingKinds.confirmOnly | pairingKinds.confirmPinMatch | pairingKinds.displayPin | pairingKinds.providePin;
-            
-            pairing.pairAsync(pairingKinds, btd.pairing.protectionLevel, (err, result) => {
-                if (err) {
-                    return reject(err);
-                }
-                let status = _parseEnumValue(result.status, DevEnum.DevicePairingResultStatus);
-                switch(status) {
-                    case 'paired':
-                    case 'alreadyPaired':
-                        let result = {
-                            status: status,
-                            device: _parseBTDevice(deasync(BTDevice.fromBluetoothAddressAsync)(address))
-                        }
-                        return resolve(result);
-                    default:
-                        return reject(new Error(`Pairing failed: ${status}`));
-                }
-            });
-        } catch(err) {
-            reject(err);
-        }
+    let result = await new Promise((res, rej) => {
+        pairing.unpairAsync(_promiseWrapperCB(res, rej));
     });
-}
 
-Bluetooth.unpair = unpair = function(address) {
-    return new Promise((resolve, reject) => {
-        try {
-            address = _treatAddress(address);
-            
-            let btd = deasync(BTDevice.fromBluetoothAddressAsync)(address).deviceInformation;
-            let pairing = btd.pairing;
-
-            pairing.unpairAsync((err, result) => {
-                if (err) {
-                    return reject(err);
-                }
-                let status = _parseEnumValue(result.status, DevEnum.DeviceUnpairingResultStatus);
-                switch(status) {
-                    case 'unpaired':
-                    case 'alreadyUnpaired':
-                        let result = {
-                            status: status,
-                            device: _parseBTDevice(deasync(BTDevice.fromBluetoothAddressAsync)(address))
-                        }
-                        return resolve(result);
-                    default:
-                        return reject(new Error(`Unpairing failed: ${status}`));
-                }
-            });
-        } catch(err) {
-            reject(err);
-        }
-    });
+    let status = _parseEnumValue(result.status, DevEnum.DeviceUnpairingResultStatus);
+    switch(status) {
+        case 'unpaired':
+        case 'alreadyUnpaired':
+            let result = {
+                status: status,
+                device: await fromAddress(address)
+            }
+            return result;
+        default:
+            throw new Error(`Unpairing failed: ${status}`);
+    }
 }
 
 module.exports = Bluetooth;

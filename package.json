@@ -1,16 +1,18 @@
 {
   "name": "win-bt",
-  "version": "0.1.0",
+  "version": "0.1.2",
   "description": "",
   "main": "bt.js",
   "bundleDependencies": [
     "windows.devices.bluetooth",
     "windows.devices.enumeration",
-    "windows.devices.radios",
-    "deasync"
+    "windows.devices.radios"
   ],
   "devDependencies": {
     "dotenv": "4.0.0"
+  },
+  "engines": {
+    "node": ">=7.6"
   },
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1"

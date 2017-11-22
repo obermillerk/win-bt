@@ -1,3 +1,5 @@
 const BT = require('../bt');
 
-console.log(BT.isEnabled());
+BT.isEnabled().then((enabled) => {
+    console.log(enabled);
+});

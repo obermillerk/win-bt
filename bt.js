@@ -12,9 +12,10 @@ const RadioState = Radios.RadioState;
 var Bluetooth = {};
 
 Bluetooth.isSupported = isSupported = async function () {
-    let radios = await new Promise((res, rej) => {
-        Radio.getRadiosAsync(_promiseWrapperCB(res, rej));
-    });
+    let radios = await _promisify(Radio.getRadiosAsync)();
+    // let radios = await new Promise((res, rej) => {
+    //     Radio.getRadiosAsync(_promiseWrapperCB(res, rej));
+    // });
     radios = radios.first();
     while (radios.hasCurrent) {
         let radio = radios.current;
@@ -175,6 +176,20 @@ function _promiseWrapperCB(res, rej) {
     return function(err, result) {
         if (err) rej(err);
         else res(result);
+    }
+}
+
+function _promisify(func) {
+    return function(...args) {
+        return new Promise((res, rej) => {
+            func(...args, (err, data) => {
+                if (err) {
+                    rej(err);
+                } else {
+                    res(data);
+                }
+            });
+        });
     }
 }
 

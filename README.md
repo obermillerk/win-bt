@@ -158,7 +158,7 @@ A [`BT Device` Object](#bluetooth-device-object), updated according to the resul
 For input of Bluetooth addresses, this library can take a variety of forms:
 
 * Colon-Separated Hex String - a string in the form of `'XX:XX:XX:XX:XX:XX'`.
-* Hex String - a string in the form of `'XXXXXXXXXXXX'` (12 or fewer characters, fewer assumed to be ).
+* Hex String - a string in the form of `'XXXXXXXXXXXX'` (12 or fewer characters, fewer assumed to be padded with leading zeros).
 * Integer - an integer, either a decimal number (`1234567890`) or a hexadecimal number (`0x1234567890AF`).
 
 Where addresses are taken as input, if the input is invalid in any way (out of range, not a string or number, or an invalid string format), the function will reject with an error.

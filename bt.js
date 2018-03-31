@@ -18,9 +18,6 @@ var Bluetooth = {};
  */
 Bluetooth.isSupported = isSupported = async function () {
     let radios = await _promisify(Radio.getRadiosAsync)();
-    // let radios = await new Promise((res, rej) => {
-    //     Radio.getRadiosAsync(_promiseWrapperCB(res, rej));
-    // });
     radios = radios.first();
     while (radios.hasCurrent) {
         let radio = radios.current;
@@ -38,9 +35,7 @@ Bluetooth.isSupported = isSupported = async function () {
  * @returns {boolean} whether or not bluetooth is enabled.
  */
 Bluetooth.isEnabled = isEnabled = async function () {
-    let radios = await new Promise((res, rej) => {
-        Radio.getRadiosAsync(_promiseWrapperCB(res, rej));
-    });
+    let radios = await _promisify(Radio.getRadiosAsync)();
     radios = radios.first();
     while (radios.hasCurrent) {
         let radio = radios.current;
@@ -151,10 +146,7 @@ function _BTAddressToInt(address) {
 async function _parseBTDevice(devInfo) {
     let btd = devInfo;
     if (devInfo instanceof DevInfo) {
-        // btd = deasync(BTDevice.fromIdAsync)(devInfo.id);
-        btd = await new Promise((res, rej) => {
-            BTDevice.fromIdAsync(devInfo.id, _promiseWrapperCB(res, rej));
-        });
+        btd = await _promisify(BTDevice.fromIdAsync)(devInfo.id);
     } else if (devInfo instanceof BTDevice) {
         devInfo = btd.deviceInformation;
     } else {
@@ -255,10 +247,7 @@ function _promisify(func) {
  */
 Bluetooth.listUnpaired = listUnpaired = async function() {
     let unpaired = [];
-    // let results = deasync(DevInfo.findAllAsync)(unpairedQuery);
-    let results = await new Promise((res, rej) => {
-        DevInfo.findAllAsync(unpairedQuery, _promiseWrapperCB(res, rej));
-    });
+    let results = await _promisify(DevInfo.findAllAsync)(unpairedQuery);
     results = results.first();
     while(results.hasCurrent) {
         let device = await _parseBTDevice(results.current);
@@ -275,10 +264,7 @@ Bluetooth.listUnpaired = listUnpaired = async function() {
  */
 Bluetooth.listPaired = listPaired = async function() {
     let paired = [];
-    // let results = deasync(DevInfo.findAllAsync)(pairedQuery);
-    let results = await new Promise((res, rej) => {
-        DevInfo.findAllAsync(pairedQuery, _promiseWrapperCB(res, rej));
-    });
+    let results = await _promisify(DevInfo.findAllAsync)(pairedQuery);
     results = results.first();
     while(results.hasCurrent) {
         let device = await _parseBTDevice(results.current);
@@ -306,9 +292,7 @@ Bluetooth.listAll = listAll = async function() {
  */
 Bluetooth.fromAddress = fromAddress = async function(address) {
     address = _treatAddress(address);
-    let btd = await new Promise((res, rej) => {
-        BTDevice.fromBluetoothAddressAsync(address, _promiseWrapperCB(res, rej));
-    });
+    let btd = await _promisify(BTDevice.fromBluetoothAddressAsync)(address);
 
     return await _parseBTDevice(btd);
 }
@@ -320,10 +304,7 @@ Bluetooth.fromAddress = fromAddress = async function(address) {
  *                    if the pairing fails.
  */
 Bluetooth.pair = pair = async function(address) {
-    // let btd = deasync(BTDevice.fromBluetoothAddressAsync)(_treatAddress(address)).deviceInformation;
-    let btd = (await new Promise((res, rej) => {
-        BTDevice.fromBluetoothAddressAsync(_treatAddress(address), _promiseWrapperCB(res, rej));
-    })).deviceInformation;
+    let btd = (await _promisify(BTDevice.fromBluetoothAddressAsync)(_treatAddress(address))).deviceInformation;
     let pairing = btd.pairing.custom;
 
     pairing.on('pairingRequested', (custom, request) => {
@@ -333,9 +314,7 @@ Bluetooth.pair = pair = async function(address) {
     pairingKinds = pairingKinds.displayPin; // Only one that seems to work at all reliably from library.
     // pairingKinds = pairingKinds.confirmOnly | pairingKinds.confirmPinMatch | pairingKinds.displayPin | pairingKinds.providePin;
     
-    let result = await new Promise((res, rej) => {
-        pairing.pairAsync(pairingKinds, btd.pairing.protectionLevel, _promiseWrapperCB(res, rej));
-    });
+    let result = _promisify(pairing.pairAsync)(pairingKinds, btd.pairing.protectionLevel);
     
     let status = _parseEnumValue(result.status, DevEnum.DevicePairingResultStatus);
     switch(status) {
@@ -358,15 +337,10 @@ Bluetooth.pair = pair = async function(address) {
  *                    if the unpairing fails.
  */
 Bluetooth.unpair = unpair = async function(address) {
-    // let btd = deasync(BTDevice.fromBluetoothAddressAsync)(_treatAddress(address)).deviceInformation;
-    let btd = (await new Promise((res, rej) => {
-        BTDevice.fromBluetoothAddressAsync(_treatAddress(address), _promiseWrapperCB(res, rej));
-    })).deviceInformation;
+    let btd = (await _promisify(BTDevice.fromBluetoothAddressAsync)(_treatAddress(address))).deviceInformation;
     let pairing = btd.pairing;
 
-    let result = await new Promise((res, rej) => {
-        pairing.unpairAsync(_promiseWrapperCB(res, rej));
-    });
+    let result = await _promisify(pairing.unpairAsync);
 
     let status = _parseEnumValue(result.status, DevEnum.DeviceUnpairingResultStatus);
     switch(status) {

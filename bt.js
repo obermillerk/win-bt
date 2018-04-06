@@ -14,7 +14,8 @@ var Bluetooth = {};
 /**
  * Determines if bluetooth is supported on this device
  * by searching for a bluetooth radio.
- * @returns {boolean} whether or not bluetooth is supported.
+ * @returns {Promise} resolves a boolean representing whether
+ *                    or not bluetooth is supported.
  */
 Bluetooth.isSupported = isSupported = async function () {
     let radios = await _promisify(Radio.getRadiosAsync)();
@@ -32,7 +33,8 @@ Bluetooth.isSupported = isSupported = async function () {
 /**
  * Determines if bluetooth is enabled on this device
  * by searching for a bluetooth radio that is enabled.
- * @returns {boolean} whether or not bluetooth is enabled.
+ * @returns {Promise} resolves a boolean representing whether
+ *                    or not bluetooth is enabled.
  */
 Bluetooth.isEnabled = isEnabled = async function () {
     let radios = await _promisify(Radio.getRadiosAsync)();
@@ -207,18 +209,6 @@ function _treatAddress(address) {
             return address;
         default:
             throw new Error('Invalid address provided. Must be either string or number.');
-    }
-}
-
-/**
- * Creates a callback that will resolve or reject a promise accordingly.
- * @param {Function} res - Promise resolve function.
- * @param {Function} rej - Promise reject function.
- */
-function _promiseWrapperCB(res, rej) {
-    return function(err, result) {
-        if (err) rej(err);
-        else res(result);
     }
 }
 

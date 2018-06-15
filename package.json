@@ -1,9 +1,9 @@
 {
   "name": "win-bt",
-  "version": "0.2.0",
+  "version": "0.2.1",
   "description": "",
   "main": "bt.js",
-  "bundleDependencies": [
+  "bundledDependencies": [
     "windows.devices.bluetooth",
     "windows.devices.enumeration",
     "windows.devices.radios"

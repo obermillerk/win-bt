@@ -301,7 +301,7 @@ Bluetooth.pair = pair = async function(address) {
     pairing.on('pairingRequested', (custom, request) => {
         request.accept();
     });
-    pairingKinds = DevEnum.DevicePairingKinds;
+    let pairingKinds = DevEnum.DevicePairingKinds;
     pairingKinds = pairingKinds.displayPin; // Only one that seems to work at all reliably from library.
     // pairingKinds = pairingKinds.confirmOnly | pairingKinds.confirmPinMatch | pairingKinds.displayPin | pairingKinds.providePin;
     

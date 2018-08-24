@@ -148,10 +148,8 @@ function _BTAddressToInt(address) {
 async function _parseBTDevice(devInfo) {
     let btd = devInfo;
     if (devInfo instanceof DevInfo) {
-		console.log("btd called");
         btd = await _promisify(BTDevice.fromIdAsync)(devInfo.id);
     } else if (devInfo instanceof BTDevice) {
-		console.log("info called");
         devInfo = btd.deviceInformation;
     } else {
         throw new Error('Invalid argument, must be either a DeviceInformation or BluetoothDevice object.');

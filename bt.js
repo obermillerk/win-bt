@@ -148,8 +148,10 @@ function _BTAddressToInt(address) {
 async function _parseBTDevice(devInfo) {
     let btd = devInfo;
     if (devInfo instanceof DevInfo) {
+		console.log("btd called");
         btd = await _promisify(BTDevice.fromIdAsync)(devInfo.id);
     } else if (devInfo instanceof BTDevice) {
+		console.log("info called");
         devInfo = btd.deviceInformation;
     } else {
         throw new Error('Invalid argument, must be either a DeviceInformation or BluetoothDevice object.');
@@ -221,7 +223,7 @@ function _promisify(func) {
         return new Promise((res, rej) => {
             func(...args, (err, data) => {
                 if (err) {
-                    rej(err);
+                    rej("rejected: " + err);
                 } else {
                     res(data);
                 }
@@ -294,30 +296,35 @@ Bluetooth.fromAddress = fromAddress = async function(address) {
  *                    if the pairing fails.
  */
 Bluetooth.pair = pair = async function(address) {
-    let btd = (await _promisify(BTDevice.fromBluetoothAddressAsync)(_treatAddress(address))).deviceInformation;
+    let device = (await _promisify(BTDevice.fromBluetoothAddressAsync)(_treatAddress(address)));
+	let btd = device.deviceInformation;
     let pairing = btd.pairing.custom;
 
     pairing.on('pairingRequested', (custom, request) => {
         request.accept();
     });
-    let pairingKinds = DevEnum.DevicePairingKinds;
+    pairingKinds = DevEnum.DevicePairingKinds;
     pairingKinds = pairingKinds.displayPin; // Only one that seems to work at all reliably from library.
     // pairingKinds = pairingKinds.confirmOnly | pairingKinds.confirmPinMatch | pairingKinds.displayPin | pairingKinds.providePin;
     
-    let result = _promisify(pairing.pairAsync)(pairingKinds, btd.pairing.protectionLevel);
-    
-    let status = _parseEnumValue(result.status, DevEnum.DevicePairingResultStatus);
-    switch(status) {
-        case 'paired':
-        case 'alreadyPaired':
-            let result = {
-                status: status,
-                device: await fromAddress(address)
-            }
-            return result;
-        default:
-            throw new Error(`Pairing failed: ${status}`);
-    }
+    // let result = _promisify(pairing.pairAsync)(pairingKinds, btd.pairing.protectionLevel);
+    return new Promise((resolve, reject) => {
+		pairing.pairAsync(pairingKinds, btd.pairing.protectionLevel, (err, result) => {
+			if(err) {return reject(err);}
+			let status = _parseEnumValue(result.status, DevEnum.DevicePairingResultStatus);
+			switch(status) {
+				case 'paired':
+				case 'alreadyPaired':
+					let result = {
+						status: status,
+						device: _parseBTDevice(device)
+					}
+					return resolve(result);
+				default:
+					return reject(new Error(`Pairing failed: ${status}`));
+			}
+	});
+	});
 }
 
 /**
@@ -327,23 +334,29 @@ Bluetooth.pair = pair = async function(address) {
  *                    if the unpairing fails.
  */
 Bluetooth.unpair = unpair = async function(address) {
-    let btd = (await _promisify(BTDevice.fromBluetoothAddressAsync)(_treatAddress(address))).deviceInformation;
+    let device = (await _promisify(BTDevice.fromBluetoothAddressAsync)(_treatAddress(address)));
+	let btd = device.deviceInformation;
     let pairing = btd.pairing;
 
-    let result = await _promisify(pairing.unpairAsync);
-
-    let status = _parseEnumValue(result.status, DevEnum.DeviceUnpairingResultStatus);
-    switch(status) {
-        case 'unpaired':
-        case 'alreadyUnpaired':
-            let result = {
-                status: status,
-                device: await fromAddress(address)
-            }
-            return result;
-        default:
-            throw new Error(`Unpairing failed: ${status}`);
-    }
+    // let result = (await _promisify(pairing.unpairAsync));
+	return new Promise ((resolve, reject) => {
+		pairing.unpairAsync((err, result) => {
+			if (err) { return reject(err); }
+			let status = _parseEnumValue(result.status, DevEnum.DeviceUnpairingResultStatus);
+			console.log(status);
+			switch(status) {
+				case 'unpaired':
+				case 'alreadyUnpaired':
+					let result = {
+						status: status,
+						device: _parseBTDevice(device)
+					}
+					return resolve(result);
+				default:
+					return reject(new Error(`Unpairing failed: ${status}`));
+			}
+		});
+	});
 }
 
 module.exports = Bluetooth;
